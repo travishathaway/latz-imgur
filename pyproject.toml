@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "latz-imgur"
+version = "0.1.0"
+description = "Imgur plugin for the popular latz image search CLI tool"
+authors = ["Travis Hathaway <travis.j.hathaway@gmail.com>"]
+license = "GPUv3"
+readme = "README.md"
+packages = [{include = "latz_imgur"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+latz = "^0.1.1"
+pydantic = "^1.10.4"
+httpx = "^0.23.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.2.0"
+darker = "^1.6.0"
+mypy = "^0.991"
+flake8 = "^6.0.0"
+pyupgrade = "^3.3.1"
+ipython = "^8.7.0"
+
+[tool.poetry.plugins."latz"]
+imgur = "latz_imgur.main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
