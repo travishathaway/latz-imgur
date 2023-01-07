@@ -1,4 +1,5 @@
 import urllib.parse
+from typing import Any
 
 import httpx
 from pydantic import BaseModel, Field
@@ -23,11 +24,9 @@ class ImgurBackendConfig(BaseModel):
 
     access_key: str = Field(description="Access key for the Imgur API")
 
-    secret_key: str = Field(description="Secret key for the Imgur API")
-
 
 CONFIG_FIELDS = {
-    f"{PLUGIN_NAME}_config": (
+    f"{PLUGIN_NAME}": (
         ImgurBackendConfig,
         {"access_key": "", "secret_key": ""},
     )
@@ -43,7 +42,7 @@ class ImgurImageAPI(ImageAPI):
     base_url = "https://api.imgur.com/3/"
 
     #: Endpoint used for searching images
-    search_endpoint = "/gallery/search"
+    search_endpoint = "gallery/search"
 
     def __init__(self, client_id: str, client: httpx.Client):
         """We use this initialization method to properly configure the ``httpx.Client`` object"""
@@ -51,6 +50,15 @@ class ImgurImageAPI(ImageAPI):
         self._headers = {"Authorization": f"Client-ID {client_id}"}
         self._client = client
         self._client.headers = httpx.Headers(self._headers)
+
+    @staticmethod
+    def _get_image_search_result_record(record_image: dict[str, Any]) -> ImageSearchResult:
+        """Provided a sequence of record images, returns a tuple of ``ImageSearchResult`` objects"""
+        return ImageSearchResult(
+            url=record_image.get("link"),
+            width=record_image.get("width"),
+            height=record_image.get("height")
+        )
 
     def search(self, query: str) -> ImageSearchResultSet:
         """
@@ -63,18 +71,13 @@ class ImgurImageAPI(ImageAPI):
 
         json_data = resp.json()
 
-        breakpoint()
-
         search_results = tuple(
-            ImageSearchResult(
-                url=record.get("links", {}).get("download"),
-                width=record.get("width"),
-                height=record.get("height"),
-            )
-            for record in json_data.get("results", tuple())
+            self._get_image_search_result_record(record_image)
+            for record in json_data.get("data", tuple())
+            for record_image in record.get("images", tuple())
         )
 
-        return ImageSearchResultSet(search_results, json_data.get("total"))
+        return ImageSearchResultSet(search_results, len(json_data.get("data", tuple())))
 
 
 class ImgurImageAPIContextManager(ImageAPIContextManager):
@@ -86,7 +89,7 @@ class ImgurImageAPIContextManager(ImageAPIContextManager):
 
     def __enter__(self) -> ImgurImageAPI:
         self.__client = httpx.Client()
-        return ImgurImageAPI(self._config.unsplash_config.access_key, self.__client)
+        return ImgurImageAPI(self._config.imgur.access_key, self.__client)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.__client.close()
