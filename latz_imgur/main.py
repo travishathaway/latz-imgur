@@ -12,6 +12,7 @@ from latz.image import (
 from latz.plugins.types import ImageAPIPlugin
 from latz.plugins.hookspec import hookimpl
 
+#: Name of the plugin that will be referenced in our configuration
 PLUGIN_NAME = "imgur"
 
 
@@ -25,24 +26,25 @@ class ImgurBackendConfig(BaseModel):
     access_key: str = Field(description="Access key for the Imgur API")
 
 
+#: These are the configuration settings we export when registering our plugin
 CONFIG_FIELDS = {
-    f"{PLUGIN_NAME}": (
+    PLUGIN_NAME: (
         ImgurBackendConfig,
         {"access_key": "", "secret_key": ""},
     )
 }
 
+#: Base URL for the Imgur API
+BASE_URL = "https://api.imgur.com/3/"
 
-class ImgurImageAPI(ImageAPI):
+#: Endpoint used for searching images
+SEARCH_ENDPOINT = "gallery/search"
+
+
+class ImgurImageAPI:
     """
     Implementation of ImageAPI for use with the Imgur API: https://apidocs.imgur.com/
     """
-
-    #: Base URL for the Imgur API
-    base_url = "https://api.imgur.com/3/"
-
-    #: Endpoint used for searching images
-    search_endpoint = "gallery/search"
 
     def __init__(self, client_id: str, client: httpx.Client):
         """We use this initialization method to properly configure the ``httpx.Client`` object"""
@@ -64,7 +66,7 @@ class ImgurImageAPI(ImageAPI):
         """
         Find images based on a ``query`` and return an ``ImageSearchResultSet``
         """
-        search_url = urllib.parse.urljoin(self.base_url, self.search_endpoint)
+        search_url = urllib.parse.urljoin(BASE_URL, SEARCH_ENDPOINT)
 
         resp = self._client.get(search_url, params={"q": query})
         resp.raise_for_status()
@@ -87,9 +89,9 @@ class ImgurImageAPIContextManager(ImageAPIContextManager):
     connection that we use in this plugin.
     """
 
-    def __enter__(self) -> ImgurImageAPI:
+    def __enter__(self) -> ImageAPI:
         self.__client = httpx.Client()
-        return ImgurImageAPI(self._config.imgur.access_key, self.__client)
+        return ImgurImageAPI(self._config.backend_settings.imgur.access_key, self.__client)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.__client.close()
