@@ -9,7 +9,7 @@ packages = [{include = "latz_imgur"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-latz = "^0.1.1"
+latz = "0.2.0"
 pydantic = "^1.10.4"
 httpx = "^0.23.1"
 

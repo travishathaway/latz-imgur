@@ -1,19 +1,19 @@
 import urllib.parse
-from typing import Any
 
 import httpx
 from pydantic import BaseModel, Field
-from latz.image import (
-    ImageAPI,
-    ImageAPIContextManager,
-    ImageSearchResultSet,
-    ImageSearchResult
-)
-from latz.plugins.types import ImageAPIPlugin
-from latz.plugins.hookspec import hookimpl
+from latz.image import ImageSearchResultSet, ImageSearchResult
+from latz.plugins import hookimpl, SearchBackendHook
+from latz.exceptions import SearchBackendError
 
 #: Name of the plugin that will be referenced in our configuration
 PLUGIN_NAME = "imgur"
+
+#: Base URL for the Imgur API
+BASE_URL = "https://api.imgur.com/3/"
+
+#: Endpoint used for searching images
+SEARCH_ENDPOINT = urllib.parse.urljoin(BASE_URL, "gallery/search")
 
 
 class ImgurBackendConfig(BaseModel):
@@ -26,84 +26,57 @@ class ImgurBackendConfig(BaseModel):
     access_key: str = Field(description="Access key for the Imgur API")
 
 
-#: These are the configuration settings we export when registering our plugin
-CONFIG_FIELDS = {
-    PLUGIN_NAME: (
-        ImgurBackendConfig,
-        {"access_key": "", "secret_key": ""},
+async def _get(client: httpx.AsyncClient, url: str, query: str) -> dict:
+    """
+    Wraps `client.get` call in a try, except so that we raise
+    an application specific exception instead.
+
+    :raises SearchBackendError: Encountered during problems querying the API
+    """
+    try:
+        resp = await client.get(url, params={"query": query})
+        resp.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise SearchBackendError(str(exc), original=exc)
+
+    json_data = resp.json()
+
+    if not isinstance(json_data, dict):
+        raise SearchBackendError("Received malformed response from search backend")
+
+    return json_data
+
+
+async def search(client, config, query: str) -> ImageSearchResultSet:
+    client.headers = httpx.Headers(
+        {
+            "Authorization": f"Client-ID {config.search_backend_settings.imgur.access_key}"
+        }
     )
-}
+    json_data = await _get(client, SEARCH_ENDPOINT, query)
 
-#: Base URL for the Imgur API
-BASE_URL = "https://api.imgur.com/3/"
-
-#: Endpoint used for searching images
-SEARCH_ENDPOINT = "gallery/search"
-
-
-class ImgurImageAPI:
-    """
-    Implementation of ImageAPI for use with the Imgur API: https://apidocs.imgur.com/
-    """
-
-    def __init__(self, client_id: str, client: httpx.Client):
-        """We use this initialization method to properly configure the ``httpx.Client`` object"""
-        self._client_id = client_id
-        self._headers = {"Authorization": f"Client-ID {client_id}"}
-        self._client = client
-        self._client.headers = httpx.Headers(self._headers)
-
-    @staticmethod
-    def _get_image_search_result_record(record_image: dict[str, Any]) -> ImageSearchResult:
-        """Provided a sequence of record images, returns a tuple of ``ImageSearchResult`` objects"""
-        return ImageSearchResult(
+    search_results = tuple(
+        ImageSearchResult(
             url=record_image.get("link"),
             width=record_image.get("width"),
             height=record_image.get("height")
         )
+        for record in json_data.get("data", tuple())
+        for record_image in record.get("images", tuple())
+    )
 
-    def search(self, query: str) -> ImageSearchResultSet:
-        """
-        Find images based on a ``query`` and return an ``ImageSearchResultSet``
-        """
-        search_url = urllib.parse.urljoin(BASE_URL, SEARCH_ENDPOINT)
-
-        resp = self._client.get(search_url, params={"q": query})
-        resp.raise_for_status()
-
-        json_data = resp.json()
-
-        search_results = tuple(
-            self._get_image_search_result_record(record_image)
-            for record in json_data.get("data", tuple())
-            for record_image in record.get("images", tuple())
-        )
-
-        return ImageSearchResultSet(search_results, len(json_data.get("data", tuple())))
-
-
-class ImgurImageAPIContextManager(ImageAPIContextManager):
-    """
-    Context manager that returns the ``ImgurImageAPI`` we wish to use.
-    This specific context manager handles setting up and tearing down the ``httpx.Client``
-    connection that we use in this plugin.
-    """
-
-    def __enter__(self) -> ImageAPI:
-        self.__client = httpx.Client()
-        return ImgurImageAPI(self._config.backend_settings.imgur.access_key, self.__client)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__client.close()
+    return ImageSearchResultSet(
+        search_results, len(search_results), search_backend=PLUGIN_NAME
+    )
 
 
 @hookimpl
-def image_api():
+def search_backend():
     """
     Registers our Imgur image API backend
     """
-    return ImageAPIPlugin(
+    return SearchBackendHook(
         name=PLUGIN_NAME,
-        image_api_context_manager=ImgurImageAPIContextManager,
-        config_fields=CONFIG_FIELDS,
+        search=search,
+        config_fields=ImgurBackendConfig(access_key=""),
     )

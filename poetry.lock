@@ -395,14 +395,14 @@ testing = ["Django (<3.1)", "attrs", "colorama", "docopt", "pytest (<7.0.0)"]
 
 [[package]]
 name = "latz"
-version = "0.1.2"
+version = "0.2.0"
 description = "CLI Program for downloading images. Maybe by location too..."
 category = "main"
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "latz-0.1.2-py3-none-any.whl", hash = "sha256:6b89b3151e7c09739e3831e61f55cc3b0733a61709f39a774ee51939f010bc6a"},
-    {file = "latz-0.1.2.tar.gz", hash = "sha256:80aeadcc8bb57f77e9e70623e4d27b51ec20e9955531c62d79d75f432db72ae9"},
+    {file = "latz-0.2.0-py3-none-any.whl", hash = "sha256:a983d8b402e2cda522545ba8207ab6b9b10c1b3fe70962d4f7c051e1c610e204"},
+    {file = "latz-0.2.0.tar.gz", hash = "sha256:927154b5fa0312dc7c013bf8e15bdbff6e70e09c0c8dbe26aea87dcb5e9f94b2"},
 ]
 
 [package.dependencies]
@@ -1032,4 +1032,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "66b6fc5b3cad9bf90bd2acab313c30981afa71b974e5d9ff01dbc4a2c232f4b9"
+content-hash = "f5c36d03f827a45cc160aaf40543ef3bbbf5158701621e1f5f2b216dae55ef96"
