@@ -34,7 +34,7 @@ async def _get(client: httpx.AsyncClient, url: str, query: str) -> dict:
     :raises SearchBackendError: Encountered during problems querying the API
     """
     try:
-        resp = await client.get(url, params={"query": query})
+        resp = await client.get(url, params={"q": query})
         resp.raise_for_status()
     except httpx.HTTPError as exc:
         raise SearchBackendError(str(exc), original=exc)
@@ -54,6 +54,7 @@ async def search(client, config, query: str) -> ImageSearchResultSet:
         }
     )
     json_data = await _get(client, SEARCH_ENDPOINT, query)
+    breakpoint()
 
     search_results = tuple(
         ImageSearchResult(
