@@ -54,7 +54,6 @@ async def search(client, config, query: str) -> ImageSearchResultSet:
         }
     )
     json_data = await _get(client, SEARCH_ENDPOINT, query)
-    breakpoint()
 
     search_results = tuple(
         ImageSearchResult(
