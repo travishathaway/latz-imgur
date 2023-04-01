@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "latz-imgur"
-version = "0.1.0"
+version = "0.1.1"
 description = "Imgur plugin for the popular latz image search CLI tool"
 authors = ["Travis Hathaway <travis.j.hathaway@gmail.com>"]
 license = "GPUv3"
