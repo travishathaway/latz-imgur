@@ -1,8 +1,8 @@
 import urllib.parse
 
 import httpx
-from pydantic import BaseModel, Field
-from latz.image import ImageSearchResultSet, ImageSearchResult
+from pydantic import BaseModel, SecretStr, Field
+from latz.image import ImageSearchResult
 from latz.plugins import hookimpl, SearchBackendHook
 from latz.exceptions import SearchBackendError
 
@@ -47,26 +47,28 @@ async def _get(client: httpx.AsyncClient, url: str, query: str) -> dict:
     return json_data
 
 
-async def search(client, config, query: str) -> ImageSearchResultSet:
+async def search(client, config, query: str) -> tuple[ImageSearchResult, ...]:
+    """
+    Search function that retrieves results from the Imgur API
+    """
+    access_key = config.search_backend_settings.imgur.access_key
+
     client.headers = httpx.Headers(
         {
-            "Authorization": f"Client-ID {config.search_backend_settings.imgur.access_key}"
+            "Authorization": f"Client-ID {access_key}"
         }
     )
     json_data = await _get(client, SEARCH_ENDPOINT, query)
 
-    search_results = tuple(
+    return tuple(
         ImageSearchResult(
             url=record_image.get("link"),
             width=record_image.get("width"),
-            height=record_image.get("height")
+            height=record_image.get("height"),
+            search_backend=PLUGIN_NAME
         )
         for record in json_data.get("data", tuple())
         for record_image in record.get("images", tuple())
-    )
-
-    return ImageSearchResultSet(
-        search_results, len(search_results), search_backend=PLUGIN_NAME
     )
 
 
